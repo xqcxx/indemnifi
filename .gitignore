@@ -1,0 +1,14 @@
+# Contracts
+contracts/out/
+contracts/cache/
+contracts/.env
+contracts/broadcast/*/
+
+# Frontend
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+
+# OS
+.DS_Store
+*.env
