@@ -12,12 +12,9 @@ import {ILMath} from "../libraries/ILMath.sol";
 import {PremiumMath} from "../libraries/PremiumMath.sol";
 import {Constants} from "../libraries/Constants.sol";
 
-// Helper contract for local Anvil and testnet demos.
-// Simulates the full Alice (uninsured) vs Bob (insured) lifecycle and
-// exposes the final comparison numbers to the frontend via getLastResult().
-//
-// The three preset price moves are fixed - same numbers every run.
-// Caller must approve this contract to spend `token` before calling runScenario().
+// Runs the Alice (uninsured) vs Bob (insured) comparison for three preset price
+// moves and exposes the result via getLastResult(). Owner must approve `token`
+// to this contract before runScenario().
 contract DemoScenarioRunner is Ownable {
     using SafeERC20 for IERC20;
 
@@ -53,8 +50,7 @@ contract DemoScenarioRunner is Ownable {
     RunResult public lastResult;
     bool      public ran;
 
-    // Deterministic sqrtPriceX96 values (ETH/USDC, 18+6 decimals).
-    // These match the values in ScenarioRunner.t.sol.
+    // sqrtPriceX96 for ETH/USDC (18+6 decimals).
     uint160 public constant PRICE_2000 = 3543191142285914327220224;
     uint160 public constant PRICE_2080 = 3716130220787573423341568;
     uint160 public constant PRICE_2800 = 5010828967500958937382912;
@@ -82,8 +78,7 @@ contract DemoScenarioRunner is Ownable {
         else                             cfg.exitPrice = PRICE_4000;
     }
 
-    // Runs the complete scenario in one transaction.
-    // Emits StepComplete events so the frontend can animate the timeline.
+    // Runs the full scenario in one tx, emitting StepComplete for the UI timeline.
     function runScenario(Scenario s) external onlyOwner {
         ScenarioConfig memory cfg = getScenarioConfig(s);
 
@@ -91,30 +86,25 @@ contract DemoScenarioRunner is Ownable {
         emit StepComplete(2, "Alice adds uninsured liquidity");
         emit StepComplete(3, "Bob adds insured liquidity");
 
-        // Bob's premium at calm rate (this is a simulation; hook.createPolicy
-        // would be called on a live pool, not here).
         uint256 bps     = Constants.CALM_PREMIUM_BPS;
         uint256 premium = PremiumMath.calculatePremium(cfg.notional, bps);
 
-        // Seed vault with premium + existing reserves.
+        // Seed via accrueYield so totalAssets() reflects the backing (a raw
+        // transfer would bypass vault accounting).
         uint256 vaultSeed = 8_500e18 + premium;
-        token.safeTransferFrom(msg.sender, address(vault), vaultSeed);
+        token.safeTransferFrom(msg.sender, address(this), vaultSeed + cfg.seedYield);
+        token.forceApprove(address(vault), vaultSeed + cfg.seedYield);
 
+        vault.accrueYield(vaultSeed);
         emit StepComplete(4, "Bob premium entered vault");
 
-        // Accrue mock yield.
-        token.forceApprove(address(vault), cfg.seedYield);
-        token.safeTransferFrom(msg.sender, address(this), cfg.seedYield);
-        token.forceApprove(address(vault), cfg.seedYield);
         vault.accrueYield(cfg.seedYield);
-
-        emit StepComplete(5, "Vault earned mock yield");
+        emit StepComplete(5, "Vault earned yield");
         emit StepComplete(6, "Market moved");
         emit StepComplete(7, "Reactive detected risk state change");
         emit StepComplete(8, "Alice exits - absorbs full IL");
         emit StepComplete(9, "Bob exits - claim triggered by Reactive");
 
-        // Compute IL and payout.
         uint256 ilBps   = ILMath.calculateILBps(cfg.entryPrice, cfg.exitPrice);
         uint256 ilAmount = ILMath.calculateILAmount(ilBps, cfg.notional);
 
@@ -128,7 +118,7 @@ contract DemoScenarioRunner is Ownable {
 
         emit StepComplete(10, "Claim settled from vault");
 
-        uint256 finalVault    = vault.totalAssets();
+        uint256 finalVault  = vault.totalAssets();
         uint256 solvencyBps   = vault.solvencyRatioBps();
 
         lastResult = RunResult({

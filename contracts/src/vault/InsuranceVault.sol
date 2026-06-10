@@ -10,9 +10,8 @@ import {MockYieldVault} from "./MockYieldVault.sol";
 import {IInsuranceVault} from "../interfaces/IInsuranceVault.sol";
 import {Constants} from "../libraries/Constants.sol";
 
-// Holds LP insurance premiums, routes idle capital to the yield vault,
-// and pays validated claims. The hook is the only authorized caller of
-// depositPremium() and payClaim().
+// Holds premiums, routes idle capital to the yield vault, pays claims.
+// Only the hook may call depositPremium / payClaim.
 contract InsuranceVault is IInsuranceVault, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -46,15 +45,11 @@ contract InsuranceVault is IInsuranceVault, Ownable, ReentrancyGuard {
         yieldVault   = _yieldVault;
     }
 
-    // Called once after hook deployment.
     function setHook(address _hook) external onlyOwner {
         hook = _hook;
     }
 
-    // ── Premium handling ──────────────────────────────────────────────────
-
-    // Hook transfers the premium in the same call that creates the policy.
-    // Tokens must already be in this contract when called (hook pulled them first).
+    // Premium tokens must already be in this contract (hook transfers, then calls this).
     function depositPremium(address token, uint256 amount) external override onlyHook {
         if (token != address(reserveToken)) revert UnsupportedToken();
 
@@ -74,15 +69,13 @@ contract InsuranceVault is IInsuranceVault, Ownable, ReentrancyGuard {
         emit VaultHealthUpdated(solvencyRatioBps(), balance);
     }
 
-    // ── Claim payout ──────────────────────────────────────────────────────
-
     function payClaim(address recipient, address token, uint256 amount)
         external override onlyHook nonReentrant
     {
         if (token != address(reserveToken)) revert UnsupportedToken();
         if (amount > availableForClaims())  revert InsufficientReserves();
 
-        // Draw from liquid first, then redeem from yield vault.
+        // Draw liquid first, then redeem from the yield vault.
         if (amount <= liquidReserve) {
             liquidReserve -= amount;
         } else {
@@ -99,10 +92,7 @@ contract InsuranceVault is IInsuranceVault, Ownable, ReentrancyGuard {
         emit VaultHealthUpdated(solvencyRatioBps(), balance);
     }
 
-    // ── Yield & rebalancing ───────────────────────────────────────────────
-
-    // Credits mock yield by pulling tokens and depositing into the yield vault.
-    // Called by the owner / DemoScenarioRunner to simulate interest accrual.
+    // Credits backing capital: pulls tokens and deposits into the yield vault.
     function accrueYield(uint256 amount) external override onlyOwner {
         reserveToken.safeTransferFrom(msg.sender, address(this), amount);
         reserveToken.forceApprove(address(yieldVault), amount);
@@ -115,7 +105,7 @@ contract InsuranceVault is IInsuranceVault, Ownable, ReentrancyGuard {
         emit VaultHealthUpdated(solvencyRatioBps(), balance);
     }
 
-    // Rebalance liquid/yield split back toward the LIQUID_RATIO_BPS target.
+    // Restore the liquid/yield split toward LIQUID_RATIO_BPS.
     function rebalance() external override onlyOwner {
         uint256 total = totalAssets();
         if (total == 0) return;
@@ -140,8 +130,6 @@ contract InsuranceVault is IInsuranceVault, Ownable, ReentrancyGuard {
         }
     }
 
-    // ── Views ─────────────────────────────────────────────────────────────
-
     function totalAssets() public view override returns (uint256) {
         return liquidReserve + yieldVault.maxWithdraw(address(this));
     }
@@ -150,8 +138,7 @@ contract InsuranceVault is IInsuranceVault, Ownable, ReentrancyGuard {
         return totalAssets();
     }
 
-    // Uses totalPremiums as the expected liability proxy. A freshly-funded vault
-    // starts at 10_000 bps (100%). Falls as claims are paid.
+    // assets / totalPremiums (liability proxy). 100% when fresh, falls on claims.
     function solvencyRatioBps() public view override returns (uint256) {
         if (totalPremiums == 0) return BPS;
         uint256 assets = totalAssets();

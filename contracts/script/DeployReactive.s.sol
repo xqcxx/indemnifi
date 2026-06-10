@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import {Script, console2} from "forge-std/Script.sol";
 import {ReactiveRiskMonitor} from "../src/reactive/ReactiveRiskMonitor.sol";
 
-// Deploys ReactiveRiskMonitor on Reactive Lasna (chain 5318008).
+// Deploys ReactiveRiskMonitor on Reactive Lasna (chain 5318007).
 // Must send ETH to fund subscription gas.
 //
 // Usage:

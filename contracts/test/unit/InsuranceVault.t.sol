@@ -145,4 +145,49 @@ contract InsuranceVaultTest is Test {
         uint256 target = total * 2000 / 10_000;
         assertApproxEqAbs(vault.liquidReserve(), target, target / 10);
     }
+
+    function test_rebalance_topsUpLiquidFromYield() public {
+        _depositPremium(1_000e6); // 200 liquid, 800 yield
+
+        // Drain liquid below target via a claim so rebalance must pull from yield.
+        vm.prank(hook);
+        vault.payClaim(alice, address(usdc), 200e6); // liquid now 0, target ~160
+        assertEq(vault.liquidReserve(), 0);
+
+        vault.rebalance();
+        // liquid was topped back up toward the 20% target from the yield vault.
+        assertGt(vault.liquidReserve(), 0);
+    }
+
+    function test_rebalance_zeroAssets_noop() public {
+        // Fresh vault, nothing deposited.
+        vault.rebalance();
+        assertEq(vault.totalAssets(), 0);
+        assertEq(vault.liquidReserve(), 0);
+    }
+
+    function test_payClaim_unsupportedToken_reverts() public {
+        _depositPremium(1_000e6);
+        MockERC20 other = new MockERC20("DAI", "DAI", 18);
+        vm.prank(hook);
+        vm.expectRevert(InsuranceVault.UnsupportedToken.selector);
+        vault.payClaim(alice, address(other), 1e6);
+    }
+
+    function test_accrueYield_onlyOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        vault.accrueYield(1e6);
+    }
+
+    function test_availableForClaims_equalsTotalAssets() public {
+        _depositPremium(1_000e6);
+        assertEq(vault.availableForClaims(), vault.totalAssets());
+    }
+
+    function test_setHook_onlyOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        vault.setHook(alice);
+    }
 }

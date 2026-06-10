@@ -3,10 +3,10 @@ pragma solidity ^0.8.26;
 
 library Constants {
     uint256 internal constant UNICHAIN_CHAIN_ID  = 1301;
-    uint256 internal constant REACTIVE_CHAIN_ID  = 5318008; // Lasna testnet
+    uint256 internal constant REACTIVE_CHAIN_ID  = 5318007; // Lasna testnet
 
     // Callback proxy on Unichain Sepolia — only this address may call hook risk functions
-    address internal constant CALLBACK_PROXY_ADDRESS = 0x9299e9826b4FDEeBdD686Cd08b521664c4A66434;
+    address internal constant CALLBACK_PROXY_ADDRESS = 0x9299472A6399Fd1027ebF067571Eb3e3D7837FC4;
 
     // Reactive system address that calls react() on RSCs
     address internal constant REACTIVE_SYSTEM = 0x0000000000000000000000000000000000fffFfF;

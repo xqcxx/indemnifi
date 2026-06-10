@@ -3,7 +3,7 @@
 # ============================================================
 
 .PHONY: build test test-fork \
-        deploy-all deploy-hook deploy-reactive init-pool run-scenario \
+        deploy-testnet deploy-all deploy-hook deploy-reactive set-proxy init-pool run-scenario \
         frontend-install frontend-dev frontend-build \
         install sync-abis clean
 
@@ -17,6 +17,13 @@ test:
 
 test-fork:
 	cd contracts && forge test --fork-url $(UNICHAIN_RPC_URL) -vvv
+
+# Full Unichain Sepolia deploy: tokens+faucet, vaults, hook, pool, seed, runner.
+# Reads PRIVATE_KEY and UNICHAIN_RPC_URL from contracts/.env.
+deploy-testnet:
+	cd contracts && set -a && . ./.env && set +a && \
+		forge script script/DeployTestnet.s.sol \
+		--rpc-url $$UNICHAIN_RPC_URL --broadcast --slow -vvv
 
 # Deploy infrastructure (PoolManager, tokens, vaults, routers)
 deploy-all:
@@ -32,12 +39,17 @@ deploy-hook:
 		--private-key $(PRIVATE_KEY) \
 		--broadcast -vvv
 
-# Deploy ReactiveRiskMonitor on Reactive Lasna
+# Deploy ReactiveRiskMonitor on Reactive Lasna (needs HOOK_ADDRESS, VAULT_ADDRESS in .env).
 deploy-reactive:
-	cd contracts && forge script script/DeployReactive.s.sol \
-		--rpc-url $(REACTIVE_RPC_URL) \
-		--private-key $(PRIVATE_KEY) \
-		--broadcast -vvv
+	cd contracts && set -a && . ./.env && set +a && \
+		forge script script/DeployReactive.s.sol \
+		--rpc-url $$REACTIVE_RPC_URL --broadcast -vvv
+
+# Authorize the Reactive callback proxy on the hook (Unichain). Needs HOOK_ADDRESS in .env.
+set-proxy:
+	cd contracts && set -a && . ./.env && set +a && \
+		forge script script/SetCallbackProxy.s.sol \
+		--rpc-url $$UNICHAIN_RPC_URL --broadcast -vvv
 
 # Initialize ETH/USDC pool with the deployed hook
 init-pool:

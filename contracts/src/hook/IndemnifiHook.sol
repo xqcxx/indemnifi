@@ -21,12 +21,8 @@ import {ILMath} from "../libraries/ILMath.sol";
 import {PremiumMath} from "../libraries/PremiumMath.sol";
 import {Constants} from "../libraries/Constants.sol";
 
-// Core Indemnifi hook. Deployed on Unichain Sepolia.
-//
-// LPs call createPolicy() alongside addLiquidity to buy IL coverage.
-// afterRemoveLiquidity emits PolicyExitRequested — ReactiveRiskMonitor picks
-// this up and calls back settleClaim() through the Reactive callback proxy.
-// afterSwap emits SwapObserved so the RSC can track price divergence.
+// Uniswap v4 hook. LPs buy IL coverage via createPolicy; exits and swaps emit
+// events the ReactiveRiskMonitor reacts to (settle claims, reprice premiums).
 contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
     using PoolIdLibrary for PoolKey;
     using StateLibrary for IPoolManager;
@@ -34,8 +30,7 @@ contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
 
     InsuranceVault public immutable vault;
 
-    // The Reactive callback proxy is the authorized caller for risk management functions.
-    // Set after RSC deployment via setCallbackProxy().
+    // Authorized caller for risk/settlement functions; set after RSC deployment.
     address public callbackProxy;
 
     mapping(uint256 => Policy) private _policies;
@@ -52,7 +47,6 @@ contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
     error PolicyNotFound();
     error PolicyNotPending();
     error Unauthorized();
-    error ExpiredPolicy();
 
     modifier onlyProxy() {
         if (msg.sender != callbackProxy && msg.sender != owner()) revert Unauthorized();
@@ -66,7 +60,6 @@ contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
         vault = _vault;
     }
 
-    // Called after RSC is deployed so the hook knows which address to trust.
     function setCallbackProxy(address proxy) external onlyOwner {
         callbackProxy = proxy;
     }
@@ -92,11 +85,8 @@ contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
         });
     }
 
-    // ── Policy creation ───────────────────────────────────────────────────
-
-    // LP calls this after or alongside addLiquidity.
-    // Premiums are paid in currency0 of the pool key.
-    // hookData passed to removeLiquidity must encode the policyId (uint256).
+    // Premium is paid in currency0. To trigger settlement on exit, pass the
+    // policyId (abi-encoded uint256) as hookData to removeLiquidity.
     function createPolicy(
         PoolKey calldata key,
         uint256 notional,
@@ -134,19 +124,15 @@ contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
 
         _ownerPolicies[msg.sender].push(policyId);
 
-        // Pull premium from LP, forward to vault.
         IERC20(token).safeTransferFrom(msg.sender, address(vault), premium);
         vault.depositPremium(token, premium);
 
         emit PolicyCreated(policyId, msg.sender, pid, notional, thresholdBps, premium);
     }
 
-    // ── Hook callbacks ────────────────────────────────────────────────────
-
-    // Emits PolicyExitRequested if hookData encodes a valid active policyId.
-    // ReactiveRiskMonitor subscribes to this event and calls back settleClaim().
+    // Emits PolicyExitRequested when hookData encodes an active policyId for this pool.
     function afterRemoveLiquidity(
-        address sender,
+        address,
         PoolKey calldata key,
         IPoolManager.ModifyLiquidityParams calldata,
         BalanceDelta,
@@ -157,22 +143,26 @@ contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
             uint256 policyId = abi.decode(hookData, (uint256));
             Policy storage p = _policies[policyId];
 
-            if (p.owner == sender && p.status == PolicyStatus.ACTIVE) {
+            // Liquidity is modified through routers in v4, so the `sender` arg is
+            // the router, not the LP. We bind the exit to the policy by matching
+            // the pool being exited and requiring the policy is still active —
+            // the policyId is supplied by the LP in hookData.
+            bytes32 pid = PoolId.unwrap(key.toId());
+            if (
+                p.owner != address(0)
+                    && PoolId.unwrap(p.poolId) == pid
+                    && p.status == PolicyStatus.ACTIVE
+            ) {
                 (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(key.toId());
                 p.status = PolicyStatus.PENDING_CLAIM;
 
-                emit PolicyExitRequested(
-                    policyId,
-                    sender,
-                    PoolId.unwrap(key.toId()),
-                    sqrtPriceX96
-                );
+                emit PolicyExitRequested(policyId, p.owner, pid, sqrtPriceX96);
             }
         }
         return (IHooks.afterRemoveLiquidity.selector, _zeroDelta());
     }
 
-    // Emits SwapObserved so the RSC can detect price divergence and update risk tiers.
+    // Emits SwapObserved for the RSC to track price divergence.
     function afterSwap(
         address,
         PoolKey calldata key,
@@ -184,8 +174,6 @@ contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
         emit SwapObserved(PoolId.unwrap(key.toId()), sqrtPriceX96, tick, block.timestamp);
         return (IHooks.afterSwap.selector, 0);
     }
-
-    // ── Claim settlement (called by ReactiveRiskMonitor via callback proxy) ──
 
     function settleClaim(uint256 policyId, uint160 exitSqrtPriceX96)
         external override onlyProxy
@@ -222,8 +210,6 @@ contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
             emit ClaimPaid(policyId, p.owner, payout, vault.totalAssets());
         }
     }
-
-    // ── Risk management (called by ReactiveRiskMonitor via callback proxy) ──
 
     function updateRiskTier(bytes32 poolId, RiskTier newTier) external override onlyProxy {
         RiskTier old = _riskTier[poolId];
@@ -290,7 +276,6 @@ contract IndemnifiHook is IIndemnifiHook, BaseHook, Ownable {
         return bps == 0 ? Constants.CALM_PREMIUM_BPS : bps;
     }
 
-    // Returns a zero BalanceDelta — used by afterRemoveLiquidity return value.
     function _zeroDelta() internal pure returns (BalanceDelta) {
         return BalanceDelta.wrap(0);
     }

@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Indemnifi — Frontend
 
-## Getting Started
+Next.js app for Indemnifi. All data is live from the deployed contracts via
+wagmi; events stream in real time.
 
-First, run the development server:
+Stack: Next.js 16 (App Router), Tailwind v4, wagmi v2, RainbowKit, viem,
+react-query, recharts, sonner.
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.local.example .env.local   # fill in deployed addresses
+npm run dev                         # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`make deploy-testnet` (in contracts) prints the values for `.env.local`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+NEXT_PUBLIC_CHAIN_ID=1301
+NEXT_PUBLIC_HOOK_ADDRESS=
+NEXT_PUBLIC_VAULT_ADDRESS=
+NEXT_PUBLIC_YIELD_VAULT_ADDRESS=
+NEXT_PUBLIC_SCENARIO_RUNNER_ADDRESS=
+NEXT_PUBLIC_WETH_ADDRESS=
+NEXT_PUBLIC_USDC_ADDRESS=
+NEXT_PUBLIC_POOL_FEE=3000
+NEXT_PUBLIC_POOL_TICK_SPACING=60
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=
+```
 
-## Learn More
+Pool params must match what the deploy used.
 
-To learn more about Next.js, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev      # dev server
+npm run build    # production build
+npm run lint     # eslint
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Structure
 
-## Deploy on Vercel
+```
+src/
+  app/            routes: / (dashboard), /app (protect), /demo, /vault
+  components/     UI primitives (ui/) + feature components
+  hooks/          wagmi read/write/event hooks
+  lib/            contracts config, formatting, chains
+  abis/           contract ABIs (from `make sync-abis`)
+  providers.tsx   wagmi + RainbowKit + react-query
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Pages
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Dashboard** — live vault stats and health.
+- **Protect** — faucet, risk meter, create policy, your policies.
+- **Demo** — runs the on-chain Alice-vs-Bob scenario with a settlement timeline.
+- **Vault** — vault health, live event feed, Reactive status.
+
+## Theme
+
+Unichain-inspired: DM Sans (bold), magenta `#fb27ce` on near-black. Tokens in
+`src/app/globals.css`. See `docs/frontend-design.md`.

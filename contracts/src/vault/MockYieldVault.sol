@@ -6,12 +6,10 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-// ERC4626 vault that simulates Aave/Morpho yield for demo purposes.
-// Owner calls accrueYield() to credit synthetic interest — in production
-// this is replaced by harvesting aToken rebases or Morpho shares.
-//
-// Frontend label: "Demo yield vault. Production target: Aave v3 / Morpho."
+// ERC4626 yield vault. Owner calls accrueYield() to credit interest.
+// Production target: Aave v3 / Morpho.
 contract MockYieldVault is ERC4626, Ownable {
     using SafeERC20 for IERC20;
 
@@ -48,13 +46,10 @@ contract MockYieldVault is ERC4626, Ownable {
         emit Withdraw(msg.sender, receiver, owner_, assets, shares);
     }
 
-    // Credit synthetic yield — tokens transferred from caller (owner or test runner).
-    // In production this is replaced by Aave aToken rebase or Morpho harvest.
+    // Credit yield: tokens pulled from the caller, assets rise, shares unchanged.
     function accrueYield(uint256 amount) external onlyOwner {
         IERC20(asset()).safeTransferFrom(msg.sender, address(this), amount);
         _totalAssets += amount;
         emit YieldAccrued(amount, _totalAssets);
     }
 }
-
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";

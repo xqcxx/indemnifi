@@ -1,27 +1,44 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.0;
 
 import {IReactive} from "../interfaces/IReactive.sol";
+import {ISystemContract} from "../interfaces/ISystemContract.sol";
+import {AbstractPayer} from "./AbstractPayer.sol";
 
-// Base for RSCs deployed on Reactive Lasna testnet.
-// react() is only callable by the Reactive system address (0x...fffFfF).
-abstract contract AbstractReactive is IReactive {
-    address internal constant REACTIVE_SYSTEM = 0x0000000000000000000000000000000000fffFfF;
+abstract contract AbstractReactive is IReactive, AbstractPayer {
+    uint256 internal constant REACTIVE_IGNORE =
+        0xa65f96fc951c35ead38878e0f0b7a3c744a6f5ccc1476b313353ce31712313ad;
 
-    modifier vmOnly() {
-        require(msg.sender == REACTIVE_SYSTEM, "not reactive system");
+    ISystemContract internal constant SERVICE_ADDR =
+        ISystemContract(payable(0x0000000000000000000000000000000000fffFfF));
+
+    // True when running inside a ReactVM (system contract absent).
+    bool internal vm;
+
+    ISystemContract internal service;
+
+    constructor() {
+        vendor = service = SERVICE_ADDR;
+        addAuthorizedSender(address(SERVICE_ADDR));
+        detectVm();
+    }
+
+    modifier rnOnly() {
+        require(!vm, "Reactive Network only");
         _;
     }
 
-    function react(
-        uint256 chainId,
-        address _contract,
-        uint256 topic_0,
-        uint256 topic_1,
-        uint256 topic_2,
-        uint256 topic_3,
-        bytes calldata data,
-        uint64  blockNumber,
-        uint256 opCode
-    ) external virtual;
+    modifier vmOnly() {
+        require(vm, "VM only");
+        _;
+    }
+
+    function detectVm() internal {
+        uint256 size;
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            size := extcodesize(0x0000000000000000000000000000000000fffFfF)
+        }
+        vm = size == 0;
+    }
 }

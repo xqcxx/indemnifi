@@ -68,11 +68,13 @@ contract DeployHook is Script {
 
     // Brute-force a CREATE2 salt whose resulting address has the required flags
     // in the lowest 20 bytes (standard v4 hook address mining).
+    uint160 constant ALL_HOOK_MASK = uint160((1 << 14) - 1);
+
     function _mine(uint160 flags, bytes memory creationCode)
         internal pure returns (address hookAddr, bytes32 salt)
     {
         bytes32 initHash = keccak256(creationCode);
-        for (uint256 i = 0; i < 50_000; i++) {
+        for (uint256 i = 0; i < 500_000; i++) {
             salt    = bytes32(i);
             hookAddr = address(uint160(uint256(keccak256(abi.encodePacked(
                 bytes1(0xff),
@@ -80,8 +82,8 @@ contract DeployHook is Script {
                 salt,
                 initHash
             )))));
-            if (uint160(hookAddr) & flags == flags) return (hookAddr, salt);
+            if (uint160(hookAddr) & ALL_HOOK_MASK == flags) return (hookAddr, salt);
         }
-        revert("salt not found in 50k iterations");
+        revert("salt not found");
     }
 }
