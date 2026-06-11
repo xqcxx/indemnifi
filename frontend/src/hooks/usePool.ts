@@ -63,5 +63,6 @@ export function usePremiumQuote(notional: bigint) {
   return {
     premium: (q.data as bigint) ?? 0n,
     isLoading: q.isLoading,
+    isError: q.isError,
   };
 }

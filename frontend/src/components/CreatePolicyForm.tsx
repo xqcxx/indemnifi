@@ -31,10 +31,11 @@ export function CreatePolicyForm() {
   const notional = safeParse(notionalStr);
   const maxPayout = safeParse(maxPayoutStr);
 
-  const { premium } = usePremiumQuote(notional);
+  const { premium, isLoading: premiumLoading, isError: premiumError } = usePremiumQuote(notional);
 
   const busy = phase === "approving" || phase === "creating";
-  const disabled = !isConnected || paused || notional === 0n || premium === 0n || busy;
+  const disabled =
+    !isConnected || paused || notional === 0n || premiumLoading || premium === 0n || busy;
 
   const onSubmit = async () => {
     const ok = await create({
@@ -83,15 +84,23 @@ export function CreatePolicyForm() {
             Premium due
           </span>
           <span className="tnum text-accent" style={{ fontSize: 20, fontWeight: 900 }}>
-            {fmtToken(premium)}
+            {premiumLoading ? "quoting..." : fmtToken(premium)}
           </span>
         </div>
+
+        {premiumError && (
+          <p className="rounded-[12px] bg-white/5 px-3 py-2 text-text-muted" style={{ fontSize: 12, fontWeight: 600 }}>
+            Premium quote is not available yet. Hard-refresh or verify the wallet is on Unichain Sepolia.
+          </p>
+        )}
 
         <Button onClick={onSubmit} disabled={disabled} loading={busy} size="lg">
           {phase === "approving"
             ? "Approving…"
             : phase === "creating"
               ? "Creating policy…"
+              : premiumLoading
+                ? "Quoting premium…"
               : paused
                 ? "Coverage paused"
                 : !isConnected

@@ -34,7 +34,7 @@ const f = (x: bigint) => Number(x) / 1e18;
 
 export function ScenarioRunner() {
   const { run, running } = useRunScenario();
-  const { result: chainResult, refetch } = useLastScenarioResult();
+  const { result: chainResult, ran, refetch } = useLastScenarioResult();
 
   const [activeStep, setActiveStep] = useState(-1);
   const [result, setResult] = useState<RunResult | null>(null);
@@ -42,6 +42,8 @@ export function ScenarioRunner() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+  const displayedResult = result ?? (!animating && ran ? chainResult : undefined);
 
   const animate = (final: RunResult) => {
     setAnimating(true);
@@ -72,7 +74,11 @@ export function ScenarioRunner() {
       <Card
         eyebrow={<Tag tone="pink">Live demo</Tag>}
         title="Alice vs Bob — IL with and without coverage"
-        subtitle="Runs on-chain via DemoScenarioRunner, then reads the settled result."
+        subtitle={
+          ran
+            ? "Run a fresh on-chain scenario, or use the latest settled result already shown below."
+            : "Runs on-chain via DemoScenarioRunner, then reads the settled result."
+        }
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {SCENARIOS.map((s) => (
@@ -129,22 +135,22 @@ export function ScenarioRunner() {
         </Card>
       )}
 
-      {result && (
+      {displayedResult && (
         <Card title="Result" subtitle="Bob's net outcome versus uninsured Alice">
           <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-            <Stat label="IL incurred" value={fmtToken(result.aliceIL)} />
-            <Stat label="Bob payout" value={fmtToken(result.bobPayout)} accent />
-            <Stat label="Bob premium" value={fmtToken(result.bobPremium)} />
+            <Stat label="IL incurred" value={fmtToken(displayedResult.aliceIL)} />
+            <Stat label="Bob payout" value={fmtToken(displayedResult.bobPayout)} accent />
+            <Stat label="Bob premium" value={fmtToken(displayedResult.bobPremium)} />
             <Stat
               label="Bob advantage"
-              value={fmtToken(result.bobAdvantage)}
-              valueColor={result.bobAdvantage > 0n ? "var(--success)" : "var(--warning)"}
+              value={fmtToken(displayedResult.bobAdvantage)}
+              valueColor={displayedResult.bobAdvantage > 0n ? "var(--success)" : "var(--warning)"}
             />
           </div>
           <div className="mt-8">
             <ComparisonChart
-              aliceFinalLoss={f(result.aliceFinalLoss)}
-              bobFinalLoss={f(result.bobFinalLoss)}
+              aliceFinalLoss={f(displayedResult.aliceFinalLoss)}
+              bobFinalLoss={f(displayedResult.bobFinalLoss)}
             />
           </div>
         </Card>
