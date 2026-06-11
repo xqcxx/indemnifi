@@ -31,19 +31,26 @@ export type PolicyTuple = readonly [
   number, // status
 ];
 
-export function toPolicy(t: PolicyTuple): Policy {
+type PolicyStruct = PolicyTuple | Policy;
+
+function field<T>(value: PolicyStruct, index: number, key: keyof Policy): T {
+  if (Array.isArray(value)) return value[index] as T;
+  return (value as Policy)[key] as T;
+}
+
+export function toPolicy(t: PolicyStruct): Policy {
   return {
-    owner: t[0],
-    poolId: t[1],
-    token: t[2],
-    notional: t[3],
-    entryPrice: t[4],
-    thresholdBps: t[5],
-    maxPayout: t[6],
-    premiumPaid: t[7],
-    createdAt: t[8],
-    expiry: t[9],
-    status: t[10] as PolicyStatus,
+    owner: field<Address>(t, 0, "owner"),
+    poolId: field<Hex>(t, 1, "poolId"),
+    token: field<Address>(t, 2, "token"),
+    notional: field<bigint>(t, 3, "notional"),
+    entryPrice: field<bigint>(t, 4, "entryPrice"),
+    thresholdBps: field<bigint>(t, 5, "thresholdBps"),
+    maxPayout: field<bigint>(t, 6, "maxPayout"),
+    premiumPaid: field<bigint>(t, 7, "premiumPaid"),
+    createdAt: field<bigint>(t, 8, "createdAt"),
+    expiry: field<bigint>(t, 9, "expiry"),
+    status: field<PolicyStatus>(t, 10, "status"),
   };
 }
 
