@@ -12,31 +12,32 @@ import {
   demoScenarioRunnerAbi,
 } from "@/abis";
 
-const env = (k: string): string => process.env[k] ?? "";
+// IMPORTANT: each NEXT_PUBLIC_* var MUST be referenced by a static literal
+// (process.env.NEXT_PUBLIC_FOO), not a computed key (process.env[k]). Next.js
+// only inlines env vars into the CLIENT bundle when it can see the literal at
+// build time. A dynamic key works on the server but becomes undefined in the
+// browser — which previously made every address fall back to the zero address.
+const toAddr = (v: string | undefined): Address =>
+  v && v.startsWith("0x") ? (v as Address) : zeroAddress;
 
-const addr = (k: string): Address => {
-  const v = env(k);
-  return (v && v.startsWith("0x") ? v : zeroAddress) as Address;
-};
-
-export const CHAIN_ID = Number(env("NEXT_PUBLIC_CHAIN_ID") || "1301");
+export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || "1301");
 
 export const addresses = {
-  hook: addr("NEXT_PUBLIC_HOOK_ADDRESS"),
-  vault: addr("NEXT_PUBLIC_VAULT_ADDRESS"),
-  yieldVault: addr("NEXT_PUBLIC_YIELD_VAULT_ADDRESS"),
-  scenarioRunner: addr("NEXT_PUBLIC_SCENARIO_RUNNER_ADDRESS"),
-  weth: addr("NEXT_PUBLIC_WETH_ADDRESS"),
-  usdc: addr("NEXT_PUBLIC_USDC_ADDRESS"),
+  hook: toAddr(process.env.NEXT_PUBLIC_HOOK_ADDRESS),
+  vault: toAddr(process.env.NEXT_PUBLIC_VAULT_ADDRESS),
+  yieldVault: toAddr(process.env.NEXT_PUBLIC_YIELD_VAULT_ADDRESS),
+  scenarioRunner: toAddr(process.env.NEXT_PUBLIC_SCENARIO_RUNNER_ADDRESS),
+  weth: toAddr(process.env.NEXT_PUBLIC_WETH_ADDRESS),
+  usdc: toAddr(process.env.NEXT_PUBLIC_USDC_ADDRESS),
 } as const;
 
-export const POOL_FEE = Number(env("NEXT_PUBLIC_POOL_FEE") || "3000");
+export const POOL_FEE = Number(process.env.NEXT_PUBLIC_POOL_FEE || "3000");
 export const POOL_TICK_SPACING = Number(
-  env("NEXT_PUBLIC_POOL_TICK_SPACING") || "60",
+  process.env.NEXT_PUBLIC_POOL_TICK_SPACING || "60",
 );
 
 export const WALLETCONNECT_PROJECT_ID =
-  env("NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID") || "indemnifi-dev";
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "indemnifi-dev";
 
 export const abis = {
   hook: indemnifiHookAbi,
@@ -56,7 +57,9 @@ export function isConfigured(): boolean {
 }
 
 export function isRunnerConfigured(): boolean {
-  return addresses.scenarioRunner !== zeroAddress && addresses.vault !== zeroAddress;
+  return (
+    addresses.scenarioRunner !== zeroAddress && addresses.vault !== zeroAddress
+  );
 }
 
 export interface PoolKey {

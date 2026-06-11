@@ -11,6 +11,13 @@ export const unichainSepolia = defineChain({
   blockExplorers: {
     default: { name: "Uniscan", url: "https://unichain-sepolia.blockscout.com" },
   },
+  // Canonical Multicall3 — required for wagmi's useReadContracts batching.
+  // Without it, batched reads can hang in "pending" and every stat shows 0.
+  contracts: {
+    multicall3: {
+      address: "0xcA11bde05977b3631167028862bE2a173976CA11",
+    },
+  },
   testnet: true,
 });
 
