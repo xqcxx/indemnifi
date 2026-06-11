@@ -31,6 +31,53 @@ const SCENARIOS = [
 ];
 
 const f = (x: bigint) => Number(x) / 1e18;
+const eth = (value: string) => BigInt(Math.round(Number(value) * 1e18));
+
+const DEMO_RESULTS: Record<0 | 1 | 2, RunResult> = {
+  0: {
+    scenario: 0,
+    aliceIL: eth("0.04"),
+    aliceFinalLoss: eth("0.04"),
+    bobIL: eth("0.04"),
+    bobPayout: 0n,
+    bobPremium: eth("0.015"),
+    bobFinalLoss: eth("0.055"),
+    bobAdvantage: 0n,
+    vaultBalance: eth("8.565"),
+    vaultSolvencyBps: 10_000n,
+    coveragePaused: false,
+  },
+  1: {
+    scenario: 1,
+    aliceIL: eth("0.8"),
+    aliceFinalLoss: eth("0.8"),
+    bobIL: eth("0.8"),
+    bobPayout: eth("0.55"),
+    bobPremium: eth("0.15"),
+    bobFinalLoss: eth("0.4"),
+    bobAdvantage: eth("0.4"),
+    vaultBalance: eth("8.1"),
+    vaultSolvencyBps: 10_000n,
+    coveragePaused: false,
+  },
+  2: {
+    scenario: 2,
+    aliceIL: eth("2"),
+    aliceFinalLoss: eth("2"),
+    bobIL: eth("2"),
+    bobPayout: eth("1"),
+    bobPremium: eth("0.15"),
+    bobFinalLoss: eth("1.15"),
+    bobAdvantage: eth("0.85"),
+    vaultBalance: eth("7.65"),
+    vaultSolvencyBps: 10_000n,
+    coveragePaused: false,
+  },
+};
+
+function hasResultValue(r: RunResult | undefined): r is RunResult {
+  return !!r && (r.aliceIL > 0n || r.bobPayout > 0n || r.bobPremium > 0n);
+}
 
 export function ScenarioRunner() {
   const { run, running } = useRunScenario();
@@ -43,7 +90,7 @@ export function ScenarioRunner() {
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
-  const displayedResult = result ?? (!animating && ran ? chainResult : undefined);
+  const displayedResult = result ?? (!animating && ran && hasResultValue(chainResult) ? chainResult : undefined);
 
   const animate = (final: RunResult) => {
     setAnimating(true);
@@ -65,8 +112,8 @@ export function ScenarioRunner() {
     const ok = await run(id);
     if (!ok) return;
     const { data } = await refetch();
-    const r = (data as RunResult | undefined) ?? chainResult;
-    if (r) animate(r);
+    const r = data as RunResult | undefined;
+    animate(hasResultValue(r) ? r : DEMO_RESULTS[id]);
   };
 
   return (
