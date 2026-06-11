@@ -9,7 +9,7 @@ import { fmtToken } from "@/lib/format";
 
 export function VaultHealthPanel() {
   const { vault, isLoading } = useVaultState();
-  const empty = !isLoading && (vault?.totalAssets ?? 0n) === 0n;
+  const empty = (vault?.totalAssets ?? 0n) === 0n;
 
   return (
     <Card
