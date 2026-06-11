@@ -6,7 +6,25 @@ LPs buy an explicit, priced policy: if their impermanent loss crosses a chosen
 deductible, a yield-bearing vault pays out — and Reactive Network automates the
 risk monitoring and claim settlement across chains.
 
-🎬 **Demo video:** <add link>  ·  🌐 **Live app:** <add link>
+🎬 **Demo video:** pending  ·  🌐 **Live app:** https://indemnifi-frontend.vercel.app
+
+## Hookathon submission
+
+- **Submission type:** Uniswap Hook Incubator (UHI)
+- **Public repo:** https://github.com/xqcxx/indemnifi/tree/main
+- **Live app:** https://indemnifi-frontend.vercel.app
+- **Demo video:** pending
+
+## Partner integrations
+
+Indemnifi integrates the following partner technologies in working code:
+
+| Partner / tech | Where |
+|---|---|
+| Uniswap v4 Hooks | [`contracts/src/hook/IndemnifiHook.sol`](contracts/src/hook/IndemnifiHook.sol), [`contracts/src/hook/BaseHook.sol`](contracts/src/hook/BaseHook.sol), lifecycle tests in [`contracts/test/integration/HookLifecycle.t.sol`](contracts/test/integration/HookLifecycle.t.sol) |
+| Reactive Network | [`contracts/src/reactive/ReactiveRiskMonitor.sol`](contracts/src/reactive/ReactiveRiskMonitor.sol), callback wiring in [`contracts/script/SetCallbackProxy.s.sol`](contracts/script/SetCallbackProxy.s.sol), frontend status/demo flows in [`frontend/src/components/ReactiveStatus.tsx`](frontend/src/components/ReactiveStatus.tsx) and [`frontend/src/components/ScenarioRunner.tsx`](frontend/src/components/ScenarioRunner.tsx) |
+
+The yield vault in this repo is a local ERC-4626-style demo vault used for transparent testnet accounting; it is not submitted as an external partner integration.
 
 ## Deployed contracts
 

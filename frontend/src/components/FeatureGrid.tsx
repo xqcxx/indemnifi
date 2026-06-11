@@ -20,7 +20,7 @@ const features: Feature[] = [
     tag: "Yield Vault",
     tone: "green",
     title: "Premiums that earn",
-    body: "Premiums pool into the insurance vault and route idle capital into an ERC-4626 yield source — Aave v3 / Morpho in production.",
+    body: "Premiums pool into the insurance vault and route idle capital into an ERC-4626-style demo vault so idle reserves grow while waiting for claims.",
   },
   {
     tag: "Reactive Network",

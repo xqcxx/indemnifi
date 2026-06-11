@@ -10,7 +10,7 @@ src/
   hook/IndemnifiHook.sol        v4 hook — sells policies, collects premiums, settles claims
   hook/BaseHook.sol             minimal v4 BaseHook
   vault/InsuranceVault.sol      holds premiums, pays claims, routes idle capital to yield
-  vault/MockYieldVault.sol      ERC-4626 yield vault (prod target: Aave v3 / Morpho)
+  vault/MockYieldVault.sol      ERC-4626-style demo yield vault
   reactive/ReactiveRiskMonitor.sol   RSC on Reactive Lasna — auto risk/settlement
   demo/DemoScenarioRunner.sol   one-tx Alice-vs-Bob comparison for the demo
   libraries/                    ILMath, PremiumMath, Constants

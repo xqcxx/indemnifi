@@ -27,7 +27,7 @@ const rows: Row[] = [
   },
   {
     title: "Production yield routing",
-    desc: "Swap the mock vault for Aave v3 / Morpho ERC-4626 strategies.",
+    desc: "Swap the mock yield vault for audited production reserve strategies.",
     status: "future",
   },
 ];
